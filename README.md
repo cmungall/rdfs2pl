@@ -1,17 +1,14 @@
 ## Synopsis
 
-```
-:- ensure_loaded( library(rdfs2pl) ).
-:- use_module(library(semweb/rdf_db)).
-
-
-gen :-
-        pizzans(URL),
-        rdf_load('pizza.owl'),
-        tell('pizza.pl'),
-        write_schema(pizza,'http://owl.cs.manchester.ac.uk/2009/07/sssw/pizza#',[use_labels(true)]),
-        told.
-```
+    :- ensure_loaded( library(rdfs2pl) ).
+    :- use_module(library(semweb/rdf_db)).
+    
+    gen :-
+            pizzans(URL),
+            rdf_load('pizza.owl'),
+            tell('pizza.pl'),
+            write_schema(pizza,'http://owl.cs.manchester.ac.uk/2009/07/sssw/pizza#',[use_labels(true)]),
+            told.
 
 ## Description
 
