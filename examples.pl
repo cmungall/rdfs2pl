@@ -1,5 +1,6 @@
 :- ensure_loaded( library(rdfs2pl) ).
 :- use_module(library(semweb/rdf_db)).
+:- use_module(library(semweb/rdf_turtle)).
 :- use_module(library(semweb/rdf_http_plugin)).
 
 pizzans('http://owl.cs.manchester.ac.uk/2009/07/sssw/pizza#').

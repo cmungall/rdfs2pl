@@ -1,12 +1,14 @@
 /* -*- Mode: Prolog -*- */
 
-/** 
-
-**/
 
 :- module(rdfs2pl,
           [assert_schema/2,
+           write_schema/2,
            write_schema/3]).
+
+/** <module> compile an RDF schema to a prolog module
+
+*/
 
 :- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdfs)).
@@ -26,7 +28,9 @@ write_schema(Local,Opts):-
         write_schema(Local,_,Opts).
 write_schema(Local,Global,Opts):-
         (   var(Global)
-        ->  rdf_current_prefix(uberon,Global)
+        ->  (   rdf_current_prefix(Local,Global)
+            ->  true
+            ;   true)
         ;   rdf_register_ns(Local,Global)),
         write_module_schema(Local,[module(Local)|Opts]).
 
@@ -125,7 +129,15 @@ inf_clause( NS, (Head:-Body), Opts ):-
          rdfs_individual_of(R,owl:'DatatypeProperty'),
          maketerm(R,[Subj,Obj],Head,NS,_F,Opts),
          Body = (rdf_has(Subj,R,Obj1),
-                 rdf_literal_to_native(Obj1,Obj)).
+                 rdf_literal_value(Obj1,Obj)).
+
+inf_clause( NS, (:- rdf_meta Term), Opts):-
+         rdf(R,rdf:type,rdf:'Property'),
+         maketerm(R,[r,r],Term,NS,_,Opts).
+inf_clause( NS, (Head:-Body), Opts ):-
+         rdf(R,rdf:type,rdf:'Property'),
+         maketerm(R,[Subj,Obj],Head,NS,_F,Opts),
+         Body=rdf_has(Subj,R,Obj).
 
 property_to_predicate(R,Pred,Opts):-
         property_to_predicate1(R,Pred0,Opts),
@@ -191,6 +203,8 @@ inf_op( NS, F, Opts ):-
 
 property(R) :- rdfs_individual_of(R,owl:'ObjectProperty').
 property(R) :- rdfs_individual_of(R,owl:'DatatypeProperty').
+property(R) :- rdf(R,rdf:type,rdf:'Property').
+
 
         
 
