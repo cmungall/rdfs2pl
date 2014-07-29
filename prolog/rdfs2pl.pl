@@ -53,8 +53,8 @@ write_header(M,Opts):-
         nl.
 
 write_clauses(M,Opts):-
-        forall(inf_clause(M,X,Opts),
-               write_clause(X)).
+        setof(X,inf_clause(M,X,Opts),Xs),
+        maplist(write_clause,Xs).
 
 write_clause(X):- writep(X).
 
@@ -95,6 +95,11 @@ maketerm(URI,Args,Term,NS,Functor,Opts):-
         Term=..[':',NS,T1].
 
 cls(C,Opts) :-
+        % call unique
+        setof(C,cls1(C,Opts),Cs),
+        member(C,Cs).
+        
+cls1(C,Opts) :-
         \+ member( exclude_classes(true), Opts),
          rdfs_individual_of(C,owl:'Class'),
          \+ rdf_is_bnode(C).
@@ -201,9 +206,11 @@ inf_op( NS, F, Opts ):-
         property_to_predicate(F0,F,Opts).
 */
 
-property(R) :- rdfs_individual_of(R,owl:'ObjectProperty').
-property(R) :- rdfs_individual_of(R,owl:'DatatypeProperty').
-property(R) :- rdf(R,rdf:type,rdf:'Property').
+property(R) :- setof(R,property1(R),Rs),member(R,Rs). % call unique
+
+property1(R) :- rdfs_individual_of(R,owl:'ObjectProperty').
+property1(R) :- rdfs_individual_of(R,owl:'DatatypeProperty').
+property1(R) :- rdf(R,rdf:type,rdf:'Property').
 
 
         
