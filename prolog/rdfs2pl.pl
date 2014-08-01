@@ -1,22 +1,25 @@
 /* -*- Mode: Prolog -*- */
 
-/** 
-
-**/
-
 :- module(rdfs2pl,
           [assert_schema/2,
-           write_schema/3]).
+           assert_schema/1,
+           write_schema/3,
+           write_schema/2]).
 
 :- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdfs)).
+
 
 assert_schema(Local,Global):-
         rdf_register_ns(Local,Global),
         assert_clauses(Local).
 
+assert_schema(Local):-
+        rdf_current_prefix(Local,_),
+        assert_clauses(Local).
+
 assert_clauses(M):-
-        forall(inf_clause(M,X),
+        forall(inf_clause(M,X,[]),
                M:assert(X)).
 
 %% write_schema(Prefix,Global,+Opts)
@@ -26,7 +29,7 @@ write_schema(Local,Opts):-
         write_schema(Local,_,Opts).
 write_schema(Local,Global,Opts):-
         (   var(Global)
-        ->  rdf_current_prefix(uberon,Global)
+        ->  rdf_current_prefix(Local,Global)
         ;   rdf_register_ns(Local,Global)),
         write_module_schema(Local,[module(Local)|Opts]).
 
@@ -174,6 +177,7 @@ inf_export( NS, F/N, Opts ):-
         functor(Term,F,N).
 
 inf_export( NS, op(300,xfy,F), Opts ):-
+        option(ops(true),Opts,true),
         property(R),
         maketerm(R,[], NS:F,Opts).
 
