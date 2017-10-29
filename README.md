@@ -10,6 +10,10 @@
             write_schema(pizza,'http://owl.cs.manchester.ac.uk/2009/07/sssw/pizza#',[use_labels(true)]),
             told.
 
+Command line wrapper:
+
+    rdfs2pl pizza pizza.owl > pizza.pl
+
 ## Description
 
 Compiles an RDFS schema to prolog wrapper predicates. For example, if the ontology contains
@@ -36,6 +40,13 @@ This allows convenient querying of the form:
 ## Installation
 
     ?- pack_install(rdfs2pl).
+
+## Quickstart
+
+    rdfs2pl pizza pizza.owl > pizza.pl
+
+
+## Project
 
 Source code available and pull requests accepted at http://github.com/cmungall/rdfs2pl
     
