@@ -23,7 +23,7 @@ assert_schema(Local,Global):-
         assert_clauses(Local).
 
 assert_clauses(M):-
-        forall(inf_clause(M,X),
+        forall(inf_clause(M,X,[]),
                M:assert(X)).
 
 %% write_schema(+Prefix,+Global,+Opts)
@@ -69,8 +69,9 @@ write_clause(X):-
         %Head =.. [_,_,Head2],
         %format('%% ~w.~n',[Head2]),
                                 %format('%~n'),
-        forall(clause_comment(X,Comment),
-               write(Comment)),
+        (   clause_comment(X,Comment)
+        ->  write(Comment)
+        ;   true),
         writep(X),
         nl.
 
@@ -112,16 +113,22 @@ maketerm(URI,Args,Term,NS,Functor,Opts):-
         T1=..[FunctorSafe|Args],
         Term=..[':',NS,T1].
 
-make_comment(Clause, Term, class, Obj) :-
+make_comment(Clause, _:Term, class, Obj) :-
         numbervars(Term,8,_),
         sformat(S,'%! ~w~n%~n%  Any instance of <~w>~n%~n',[Term,Obj]),
         assert(clause_comment(Clause,S)),
         make_comment_from_def(Clause,Obj).
-make_comment(Clause, Term, property, Obj) :-
+make_comment(Clause, _:Term, property, Obj) :-
         numbervars(Term,8,_),
         sformat(S,'%! ~w~n%~n%  Any relationship of type <~w>~n%~n',[Term,Obj]),
         assert(clause_comment(Clause,S)),
         make_comment_from_def(Clause,Obj).
+
+make_aux_comment(Clause, _:Term, Aux) :-
+        numbervars(Term,8,_),
+        Term =.. [P|_],
+        sformat(S,'%! ~w~n%~n%  As ~w/2 ~w~n%~n',[Term,P,Aux]),
+        assert(clause_comment(Clause,S)).
 
 make_comment_from_def(Clause,Obj) :-
         ont_desc(Obj,Desc),
@@ -131,6 +138,7 @@ make_comment_from_def(Clause,Obj) :-
 make_comment_from_def(_,_).
 
 
+
 cls(C,Opts) :-
         % call unique
         setof(C,cls1(C,Opts),Cs),
@@ -138,11 +146,23 @@ cls(C,Opts) :-
         
 cls1(C,Opts) :-
         \+ member( exclude_classes(true), Opts),
-         rdfs_individual_of(C,owl:'Class'),
-         \+ rdf_is_bnode(C).
-
+        rdfs_individual_of(C,owl:'Class'),
+        \+ rdf_is_bnode(C).
 
 %% inf_clause(?Namespace, ?Clause, +Opts)
+%
+% generates a clause to be used as a directive in
+% a prolog program
+%
+inf_clause(NS, Clause, Opts) :-
+        inf_clause_meta(NS, Clause, _, Opts).
+inf_clause(NS, Directive, Opts) :-
+        inf_clause_meta(NS, _, Meta, Opts),
+        make_meta_directive(Meta, Directive).
+
+
+
+%% inf_clause_meta(?Namespace, ?Clause, +Opts)
 %
 % generates a clause to be used as a directive in
 % a prolog program
@@ -154,14 +174,10 @@ cls1(C,Opts) :-
 % 
 % represented by unary predicates
 
-% rdf_meta directive
-inf_clause( _NS, (:- rdf_meta Term), Opts):-
+% unary predicate: C(I)
+inf_clause_meta( _NS, (Head:-Body), Meta, Opts):-
          cls(C,Opts),
-         maketerm(C,[r],Term,Opts).
-
-% core clause
-inf_clause( _NS, (Head:-Body), Opts):-
-         cls(C,Opts),
+         maketerm(C,[r],Meta,Opts),
          maketerm(C,[I],Head,Opts),
          (   member(expand_subclass(Opts,true),Opts)
          *-> (   Body=rdf(I,rdf:type,C),
@@ -176,86 +192,87 @@ inf_clause( _NS, (Head:-Body), Opts):-
 % represented by binary+ predicates
 
 % basic binary predicate: P(S,O)
-inf_clause( NS, (:- rdf_meta Term), Opts):-
+inf_clause_meta( NS, (Head:-Body), Meta, Opts ):-
          property(R),
-         maketerm(R,[r,r],Term,NS,_,Opts).
-inf_clause( NS, (Head:-Body), Opts ):-
-         property(R),
+         maketerm(R,[r,r],Meta,NS,_,Opts),
          maketerm(R,[Subj,Obj],Head,NS,_F,Opts),
+         make_comment( (Head:-Body), Head, property, R),
          Body=rdf_has(Subj,R,Obj).
 
 % ternary predicate with graph: P(S,O,G)
-inf_clause( NS, (:- rdf_meta Term), Opts):-
+inf_clause_meta( NS, (Head:-Body), Meta, Opts ):-
          property(R),
-         maketerm(R,[r,r,g],Term,NS,_,Opts).
-inf_clause( NS, (Head:-Body), Opts ):-
-         property(R),
+         maketerm(R,[r,r,g],Meta,NS,_,Opts),
          maketerm(R,[Subj,Obj,G],Head,NS,_F,Opts),
-         Body=rdf(Subj,R,Obj,G).
+         Body=rdf(Subj,R,Obj,G),
+         make_aux_comment( (Head:-Body), Head, ' where asserted in graph').
 
 % quad predicate with graph and reified node: P(S,O,G,N)
-inf_clause( NS, (:- rdf_meta Term), Opts):-
+inf_clause_meta( NS, (Head:-Body), Meta, Opts ):-
          property(R),
-         maketerm(R,[r,r,g,r],Term,NS,_,[suffix(node)|Opts]).
-inf_clause( NS, (Head:-Body), Opts ):-
-         property(R),
-         maketerm(R,[Subj,Obj,G,Node],Head,NS,_F,[suffix(node)|Opts]),
+         member(reify(true), Opts),
+         NOpts=[suffix(node)|Opts],
+         maketerm(R,[r,r,g,r],Meta,NS,_,NOpts),
+         maketerm(R,[Subj,Obj,G,Node],Head,NS,_F,NOpts),
          Body=(rdf(Subj,R,Obj,G),
                rdf(Node,rdf:subject,Subj),
                rdf(Node,rdf:predicate,R),
-               rdf(Node,rdf:object,Obj)).
+               rdf(Node,rdf:object,Obj)),
+         make_aux_comment( (Head:-Body), Head, ', where asserted in graph and rdf-reified by node').
+         
 
 % ternary predicate with reified node, no graph: P_node(S,O,N)
-inf_clause( NS, (:- rdf_meta Term), Opts):-
+inf_clause_meta( NS, (Head:-Body), Meta, Opts ):-
          property(R),
-         maketerm(R,[r,r,r],Term,NS,_,[suffix(node)|Opts]).
-inf_clause( NS, (Head:-Body), Opts ):-
-         property(R),
-         maketerm(R,[Subj,Obj,Node],Head,NS,_F,[suffix(node)|Opts]),
+         member(reify(true), Opts),
+         NOpts=[suffix(node)|Opts],
+         maketerm(R,[r,r,r],Meta,NS,_,NOpts),
+         maketerm(R,[Subj,Obj,Node],Head,NS,_F,NOpts),
          Body=(rdf(Subj,R,Obj),
                rdf(Node,rdf:subject,Subj),
                rdf(Node,rdf:predicate,R),
                rdf(Node,rdf:object,Obj)).
 
 % generate subclass_of_P(S,O) from property P 
-inf_clause( NS, (:- rdf_meta Term), Opts):-
+inf_clause_meta( NS, (Head:-Body), Meta, Opts ):-
          rdfs_individual_of(R,owl:'ObjectProperty'),
-         maketerm(R,[r,r],Term,NS,_,[prefix(subclass_of)|Opts]).
-inf_clause( NS, (Head:-Body), Opts ):-
-         rdfs_individual_of(R,owl:'ObjectProperty'),
-         maketerm(R,[Subj,Obj],Head,NS,_F,[prefix(subclass_of)|Opts]),
+         NOpts=[prefix(subclass_of)|Opts],
+         maketerm(R,[r,r],Meta,NS,_,NOpts),
+         maketerm(R,[Subj,Obj],Head,NS,_F,NOpts),
          Body=(rdf(Subj,rdfs:subClassOf,Restr),
                rdf(Restr,owl:onProperty,R),
-               rdf(Restr,owl:someValuesFrom,Obj)).
+               rdf(Restr,owl:someValuesFrom,Obj)),
+         make_aux_comment( (Head:-Body), Head, ', TODO').
 
 
 % generate P_axiom(S,O,G,N) from property P
-inf_clause( NS, (:- rdf_meta Term), Opts):-
+inf_clause_meta( NS, (Head:-Body), Meta, Opts ):-
          property(R),
-         maketerm(R,[r,r,g,r],Term,NS,_,[suffix(axiom)|Opts]).
-inf_clause( NS, (Head:-Body), Opts ):-
-         property(R),
-         maketerm(R,[Subj,Obj,G,Axiom],Head,NS,_F,[suffix(axiom)|Opts]),
+         member(reify_owl(true), Opts),
+         NOpts = [suffix(axiom)|Opts],
+         maketerm(R,[r,r,g,r],Meta,NS,_,NOpts),
+         maketerm(R,[Subj,Obj,G,Axiom],Head,NS,_F,NOpts),
          Body=(rdf(Subj,R,Obj,G),
                rdf(Axiom,owl:annotatedSource,Subj),
                rdf(Axiom,owl:annotatedProperty,R),
-               rdf(Axiom,owl:annotatedTarget,Obj)).
+               rdf(Axiom,owl:annotatedTarget,Obj)),
+         make_aux_comment( (Head:-Body), Head, ', where asserted in graph and owl-reified by node').
+
 
 % generate P_axiom(S,O,N) from property P
-inf_clause( NS, (:- rdf_meta Term), Opts):-
+inf_clause_meta( NS, (Head:-Body), Meta, Opts ):-
          property(R),
-         maketerm(R,[r,r,r],Term,NS,_,[suffix(axiom)|Opts]).
-inf_clause( NS, (Head:-Body), Opts ):-
-         property(R),
-         maketerm(R,[Subj,Obj,Axiom],Head,NS,_F,[suffix(axiom)|Opts]),
+         member(reify_owl(true), Opts),
+         NOpts = [suffix(axiom)|Opts],
+         maketerm(R,[r,r,r],Meta,NS,_,NOpts),
+         maketerm(R,[Subj,Obj,Axiom],Head,NS,_F,NOpts),
          Body=(rdf(Subj,R,Obj),
                rdf(Axiom,owl:annotatedSource,Subj),
                rdf(Axiom,owl:annotatedProperty,R),
-               rdf(Axiom,owl:annotatedTarget,Obj)).
+               rdf(Axiom,owl:annotatedTarget,Obj)),
+         make_aux_comment( (Head:-Body), Head, ', where owl-reified by node').
 
                
-
-
 
 property_to_predicate(R,Pred,Opts):-
         property_to_predicate1(R,Pred0,Opts),
@@ -293,7 +310,6 @@ ont_label(X,Label) :- rdf(X,rdfs:label,S),S=literal(type(_,Label)).
 ont_desc(X,Label) :- rdf(X,'http://purl.obolibrary.org/obo/IAO_0000115',S),S=literal(type(_,Label)).
 
 
-%inf_clause(X):- inf_clauses(Xs),member(X,Xs).
 
 mod_exports( NS, F/N, Opts):-
         cls(C,Opts),
@@ -414,4 +430,7 @@ csafe(C,C) :-
         C @=< '9',
         !.
 csafe(_,'_').
+
+
+make_meta_directive(Meta, (:- rdf_meta Meta)).
 
