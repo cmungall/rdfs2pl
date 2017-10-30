@@ -1,10 +1,10 @@
 /* -*- Mode: Prolog -*- */
 
-
 :- module(rdfs2pl,
           [assert_schema/2,
-           write_schema/2,
-           write_schema/3]).
+           assert_schema/1,
+           write_schema/3,
+           write_schema/2]).
 
 /** <module> compile an RDF schema to a prolog module
 
@@ -20,6 +20,10 @@
 % as write_schema/2, but assert directly
 assert_schema(Local,Global):-
         rdf_register_ns(Local,Global),
+        assert_clauses(Local).
+
+assert_schema(Local):-
+        rdf_current_prefix(Local,_),
         assert_clauses(Local).
 
 assert_clauses(M):-
