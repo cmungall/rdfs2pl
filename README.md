@@ -60,7 +60,7 @@ These are on by default. These can be controlled via `Opts` in write_schema/3, o
 
 ## Quickstart
 
-    rdfs2pl pizza pizza.owl - pizza.pl
+    rdfs2pl pizza pizza.owl -o pizza.pl
 
 For all options, see
 
