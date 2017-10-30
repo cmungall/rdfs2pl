@@ -353,6 +353,7 @@ mod_exports( NS, F/N, Opts ):-
         functor(Term,F,N).
 
 mod_exports( NS, op(300,xfy,F), Opts ):-
+        option(ops(true),Opts,true),
         property(R),
         maketerm(R,[], NS:F,Opts).
 
