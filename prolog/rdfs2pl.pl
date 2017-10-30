@@ -328,19 +328,23 @@ mod_exports( NS, F/N, Opts ):-
 
 mod_exports( NS, F/N, Opts ):-
         property(R),
+        member(reify(true), Opts),
         maketerm(R,[-,-,-], NS:Term,[suffix(node)|Opts]),
         functor(Term,F,N).
 mod_exports( NS, F/N, Opts ):-
         property(R),
+        member(reify(true), Opts),
         maketerm(R,[-,-,-,-], NS:Term,[suffix(node)|Opts]),
         functor(Term,F,N).
 
 mod_exports( NS, F/N, Opts ):-
         property(R),
+        member(reify_owl(true), Opts),
         maketerm(R,[-,-,-], NS:Term,[suffix(axiom)|Opts]),
         functor(Term,F,N).
 mod_exports( NS, F/N, Opts ):-
         property(R),
+        member(reify_owl(true), Opts),
         maketerm(R,[-,-,-,-], NS:Term,[suffix(axiom)|Opts]),
         functor(Term,F,N).
 
